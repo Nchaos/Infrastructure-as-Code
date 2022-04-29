@@ -1,0 +1,30 @@
+name: $(projectName)-$(infraType)
+
+trigger: none
+
+parameters:
+- name: removeDeployment
+  displayName: Remove resources post-deployment
+  type: boolean
+  default: false
+
+variables:
+- template: /Infrastructure/.global/variables/global.variables.yml
+- template: /Infrastructure/.global/variables/variables.usgovarizona.yml
+- name : projectName
+  value: AKS-CNI
+- name : infraType
+  value: core
+
+stages:
+- stage: Plan
+  jobs:
+    - template: /Infrastructure/.global/templates/pipeline.jobs.terraform.plan.yml
+
+- stage: Apply
+  jobs:
+    - template: /Infrastructure/.global/templates/pipeline.jobs.terraform.apply.yml
+
+- stage: Destroy
+  jobs:
+    - template: /Infrastructure/.global/templates/pipeline.jobs.terraform.destroy.yml

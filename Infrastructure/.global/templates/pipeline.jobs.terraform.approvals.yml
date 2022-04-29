@@ -1,0 +1,13 @@
+jobs:
+- job: Approvals
+  displayName: "External validation from approver"
+  pool: server
+  timeoutInMinutes: 4320 # in minutes, 3 days timeout
+  steps:
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440 # in minutes, 1 day timeout
+      inputs:
+        notifyUsers: |
+          erikha@microsoft.com
+        instructions: 'Please validate build configuration and resume'
+        onTimeout: 'reject'

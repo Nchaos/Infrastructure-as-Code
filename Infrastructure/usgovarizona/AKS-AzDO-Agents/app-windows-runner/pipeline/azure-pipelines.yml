@@ -1,0 +1,26 @@
+name: $(projectName)-$(infraType)
+
+trigger: none
+
+variables:
+- template: /Modules/.global/global.variables.yml
+- name : projectName
+  value: AKS-AzDO
+- name : infraType
+  value: app-windows-runner
+
+
+stages:
+  - stage: 'Deploy_App_Config'
+    jobs:
+      - job: 'Deploy_App_Config'
+        pool: $(poolName)
+        steps:
+        - task: AzureCLI@2
+          condition: succeeded()
+          displayName: 'Setup AKS Cluster'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptPath: '$(infraPath)/$(infraType)/setup.sh'
+            workingDirectory: '$(infraPath)/$(infraType)'

@@ -1,0 +1,86 @@
+# When copying this template, be sure to update the following variables:
+# - projectName
+# - infraType
+# - both variable templates according to the region you are deploying to
+# These values should match the name of the directory where the Terraform code is housed
+# For example, this deployment is for 'usgovarizona', and it will deploy 'core' resources in the 'AKS-AzDO-Agents'
+# Specific resources and configurations are housed in the 'core' folder which lives inside of the 'AKS-AzDO-Agents' directory
+
+name: $(projectName)-$(infraType)
+
+trigger: none
+
+pr:
+  branches:
+    include:
+    - master
+
+parameters:
+- name: removeDeployment
+  displayName: Remove resources post-deployment
+  type: boolean
+  default: false
+
+variables:
+- template: /Infrastructure/.global/variables/global.variables.yml
+- template: /Infrastructure/.global/variables/variables.usgovarizona.yml
+- name : projectName
+  value: AKS-AzDO-Agents
+- name : infraType
+  value: core
+- name: vmImage
+  value: 'ubuntu-latest'
+
+stages:
+- stage: core_infra_deploy
+  jobs:
+  - job: 'core_infra_deploy'
+    pool:
+      vmImage: '$(vmImage)'
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Setup Backend'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptPath: '$(parentInfraPath)/.global/scripts/configure-backend-resources.sh'
+    - task: replacetokens@3
+      displayName: 'Replace tokens in Terraform file'
+      inputs:
+        targetFiles: |
+          $(backendPath)/*.hcl
+        escapeType: none
+        tokenPrefix: '__'
+        tokenSuffix: '__'
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform : Initialize'
+      inputs:
+        commandOptions: -backend-config="$(System.DefaultWorkingDirectory)/$(backendPath)/backend.hcl"
+        workingDirectory: $(infraPath)/$(projectName)/$(infraType)
+        backendServiceArm: $(serviceConnection)
+        backendAzureRmResourceGroupName: $(backendTFRGName)
+        backendAzureRmStorageAccountName: $(backendTFStorageAccountName)
+        backendAzureRmContainerName: $(backendTFStorageContainerName)
+        backendAzureRmKey: '$(environment)-$(projectName)-$(infraType).tfstate'
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform : Plan'
+      inputs:
+        command: plan
+        commandOptions: '-var-file="terraform.auto.tfvars"'
+        environmentServiceNameAzureRM: $(serviceConnection)
+        workingDirectory: $(infraPath)/$(projectName)/$(infraType)
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform : Apply'
+      inputs:
+        command: apply
+        commandOptions: '-var-file="terraform.auto.tfvars" -auto-approve'
+        workingDirectory: $(infraPath)/$(projectName)/$(infraType)
+        environmentServiceNameAzureRM: $(serviceConnection)
+    - task: TerraformTaskV2@2
+      condition: and(succeededOrFailed(), eq( '${{ parameters.removeDeployment }}', true))
+      displayName: 'Terraform : Destroy'
+      inputs:
+        command: destroy
+        commandOptions: '-var-file="terraform.auto.tfvars" -auto-approve'
+        workingDirectory: $(infraPath)/$(projectName)/$(infraType)
+        environmentServiceNameAzureRM: $(serviceConnection)

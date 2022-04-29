@@ -1,0 +1,16 @@
+variables:
+
+######################################
+# Agent settings
+######################################
+  poolName: 'aks-usdc-dev-pool'   # Use this for self-hosted agents
+
+######################################
+# Components storage account settings
+######################################
+  backendTFRGName: "rg-usgovaz-tf-infra"
+  backendTFStorageAccountRGLocation: "usgovarizona"
+  backendTFStorageAccountName: "sausgovazusdciacstf"
+  backendTFStorageContainerName: "usgovaz-terraform-state"
+  storageKey: 
+  environment: 'usgovarizona'

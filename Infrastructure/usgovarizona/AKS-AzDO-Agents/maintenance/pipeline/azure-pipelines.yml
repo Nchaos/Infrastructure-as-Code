@@ -1,0 +1,49 @@
+name: $(projectName)-$(infraType)
+
+trigger: none
+
+schedules:
+  - cron: "0 7 * * 1"
+    displayName: Weekly AKS Version Check
+    branches:
+      include: 
+        - master
+    always: true
+
+variables:
+- template: /Modules/.global/global.variables.yml
+- name : projectName
+  value: AKS-AzDO
+- name : infraType
+  value: maintenance
+
+stages:
+  - stage: 'Check_AKS_Version'
+    jobs:
+      - job: 'Check_AKS_Version'
+        pool: $(poolName)
+        steps:
+        - task: AzureCLI@2
+          displayName: 'Setup Backend'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptPath: '$(globalPath)/scripts/configure-backend-resources.sh'
+        - task: AzureCLI@2
+          displayName: 'Download remote state'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: '$(infraPath)/$(infraType)'
+            inlineScript: |
+              az storage blob download --container-name "terraform-state" --file "./AKS-AzDO-core.tfstate" --name "AKS-AzDO-core.tfstate" --account-name $(backendTFStorageAccountName) --account-key $(storageKey)
+              az storage blob download --container-name "terraform-state" --file "./AKS-AzDO-k8s-cluster.tfstate" --name "AKS-AzDO-k8s-cluster.tfstate" --account-name $(backendTFStorageAccountName) --account-key $(storageKey)
+        - task: AzureCLI@2
+          condition: succeeded()
+          displayName: 'Check AKS Cluster Version'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptPath: '$(infraPath)/$(infraType)/scripts/check-aks-cluster-version.sh'
+            workingDirectory: '$(infraPath)/$(infraType)'

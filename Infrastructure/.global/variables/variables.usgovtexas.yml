@@ -1,0 +1,11 @@
+variables:
+
+######################################
+# Components storage account settings
+######################################  
+  backendTFRGName: "rg-usgovtx-tf-infra"
+  backendTFStorageAccountRGLocation: "usgovtexas"
+  backendTFStorageAccountName: "sausgovtxusdciacstf"
+  backendTFStorageContainerName: "usgovtx-terraform-state"
+  storageKey:
+  environment: 'usgovtexas'

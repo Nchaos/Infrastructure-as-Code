@@ -1,0 +1,70 @@
+name: $(projectName)-$(infraType)
+
+trigger: none
+
+resources:
+  pipelines:
+  - pipeline: k8sdeploy   # Name of the pipeline resource
+    project: Infrastructure-as-Code
+    source: TF-AKS-AzDO-Agents-K8s-Cluster-Deploy # Name of the pipeline referenced by the pipeline resource
+    trigger:
+      branches:
+        include:
+        - master
+        - users/erikha-aks-cni-dev
+      stages:
+        - deploy_k8s_cluster
+
+parameters:
+  - name: azpPool
+    default: aks-usdc-dev-pool
+
+variables:
+- template: /Infrastructure/.global/variables/global.variables.yml
+- template: /Infrastructure/.global/variables/variables.usgovarizona.yml
+- name : azpUrl
+- name : azpToken
+- name : azpPool
+  value: ${{ parameters.azpPool }}
+- group: vg-akv-usdc-sharedprod
+- name : projectName
+  value: AKS-AzDO-Agents
+- name : infraType
+  value: app
+- name: vmImage
+  value: 'ubuntu-latest'
+
+stages:
+  - stage: 'Deploy_App_Config'
+    jobs:
+      - job: 'Deploy_App_Config'
+        pool:
+          vmImage: '$(vmImage)'
+        steps:
+        - task: AzureCLI@2
+          displayName: 'Setup AKS Secrets'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptPath: '$(infraPath)/$(projectName)/$(infraType)/configure-aks-secrets.sh'
+          env:
+            AZP_TOKEN: $(AZP-TOKEN)
+            ORG_NAME: $(AZP-URL)
+            AZP_POOL: $(azpPool)
+        - task: replacetokens@3
+          displayName: 'Replace tokens in AKS yml file'
+          inputs:
+            targetFiles: |
+              $(infraPath)/$(projectName)/$(infraType)/*.yml
+            escapeType: none
+            tokenPrefix: '__'
+            tokenSuffix: '__'
+        - task: AzureCLI@2
+          condition: succeeded()
+          displayName: 'Setup AKS Cluster'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptPath: '$(infraPath)/$(projectName)/$(infraType)/setup.sh'
+            arguments: '$(RG-NAME) $(ACR-NAME) $(AKS-NAME) $(AKS-NAMESPACE)'
+            workingDirectory: '$(infraPath)/$(projectName)/$(infraType)'

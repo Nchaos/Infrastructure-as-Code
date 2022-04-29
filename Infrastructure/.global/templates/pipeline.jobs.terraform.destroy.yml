@@ -1,0 +1,55 @@
+parameters:
+  # Pipeline-related parameters
+  serviceConnection: '$(serviceConnection)'
+  poolName: '$(poolName)'
+
+  # Logic-related parameters
+  modulesRepository: '$(modulesRepository)'
+  parentInfraPath: '($parentInfraPath)'
+  environment: '$(environment)'
+  infraPath: '$(infraPath)'
+  projectName: '$(projectName)'
+  infraType: '$(infraType)'
+
+  # Terraform-related parameters
+  backendPath: '$(backendPath)'
+  backendTFRGName: '$(backendTFRGName)'
+  backendTFStorageAccountRGLocation: '$(backendTFStorageAccountRGLocation)'
+  backendTFStorageAccountName: '$(backendTFStorageAccountName)'
+  backendTFStorageContainerName: '$(backendTFStorageContainerName)'
+
+jobs:
+  - job: 'Terraform_Destroy'
+    pool: $(poolName)
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Setup Backend'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptPath: '$(parentInfraPath)/.global/scripts/configure-backend-resources.sh'
+    - task: replacetokens@3
+      displayName: 'Replace tokens in Terraform file'
+      inputs:
+        targetFiles: |
+          $(backendPath)/*.hcl
+        escapeType: none
+        tokenPrefix: '__'
+        tokenSuffix: '__'
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform : Initialize'
+      inputs:
+        commandOptions: -backend-config="$(System.DefaultWorkingDirectory)/$(backendPath)/backend.hcl"
+        workingDirectory: $(infraPath)/$(projectName)/$(infraType)
+        backendServiceArm: $(serviceConnection)
+        backendAzureRmResourceGroupName: $(backendTFRGName)
+        backendAzureRmStorageAccountName: $(backendTFStorageAccountName)
+        backendAzureRmContainerName: $(backendTFStorageContainerName)
+        backendAzureRmKey: '$(environment)-$(projectName)-$(infraType).tfstate'
+    - task: TerraformTaskV2@2
+      displayName: 'Terraform : Destroy'
+      inputs:
+        command: destroy
+        commandOptions: '-var-file="terraform.auto.tfvars" -auto-approve'
+        workingDirectory: $(infraPath)/$(projectName)/$(infraType)
+        environmentServiceNameAzureRM: $(serviceConnection)

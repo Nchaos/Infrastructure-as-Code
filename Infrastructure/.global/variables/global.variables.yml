@@ -1,0 +1,16 @@
+variables:
+
+######################################
+# Agent settings
+######################################
+  #vmImage: ''                             # Use this for Microsoft-hosted agents
+  serviceConnection: 'sc-terraform-dev'
+
+######################################
+# Source
+######################################
+  modulesRepository: iacs-components-tf-gov # The repository hosting the deployment code (i.e. 'Components'). MUST be provided as a variable with every pipeline
+  parentInfraPath: Infrastructure
+  infraPath: $(parentInfraPath)/$(environment)
+  backendPath: $(parentInfraPath)/.global/backend
+

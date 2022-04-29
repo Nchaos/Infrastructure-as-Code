@@ -1,0 +1,34 @@
+name: $(moduleName)
+
+parameters:
+- name: versioningOption
+  displayName: Default publish version
+  type: string
+  default: patch
+  values:
+  - patch
+  - minor
+  - major
+- name: uiCustomVersion
+  displayName: -OR- Custom publish version
+  type: string
+  default: '-'
+
+variables:
+- template: /Modules/.global/global.variables.yml
+- name : moduleName
+  value: NetworkSecurityRule 
+
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - Modules/.global/*
+    - Modules/NetworkSecurityRule/*
+
+stages:
+  - stage: Go_Test
+    jobs:
+    - template: /Modules/.global/global.tests.yml

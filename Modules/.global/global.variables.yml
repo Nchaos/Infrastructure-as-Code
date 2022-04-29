@@ -1,0 +1,82 @@
+variables:
+
+######################################
+# Agent settings
+######################################
+
+  vmImage: ''                             # Use this for Microsoft-hosted agents
+  poolName: 'aks-usdc-dev-pool'   # Use this for self-hosted agents
+  serviceConnection: 'sc-terraform-dev'
+
+######################################
+# Source
+######################################
+  modulesRepository: iacs-components-tf-gov # The repository hosting the deployment code (i.e. 'Components'). MUST be provided as a variable with every pipeline
+  modulesPath: Modules
+  modulePath: $(modulesPath)/$(moduleName) # only use in module pielines
+  globalPath: $(modulesPath)/.global
+  backendPath: $(modulesPath)/.global/backend
+  parametersPath: $(modulePath)/Parameters # only use in module pielines
+  goTestingPath: $(modulePath)/test/src
+  
+######################################
+# Validation deployment settings
+######################################
+
+  # location: 'usgovarizona'
+  # resourceGroupName: 'rg-acf-dev-001' # validation-resourcegroup-name
+  # dependencyResourceGroupName: 'rg-acf-dev-001'
+
+######################################
+# General removal settings
+######################################
+  maximumRemovalRetries: 3 # Maximum number of retries to remove a resources in one pipeline run
+
+######################################
+# Components storage account settings
+######################################
+# Set to true, if you would like to publish modules as storage account artifacts
+  publishToStorageAccount: false
+  componentStorageAccountSubscriptionId: ### UPDATE REQUIRED.
+  backendTFRGName: "rg-tf-validation"
+  backendTFStorageAccountRGLocation: "usgovarizona"
+  backendTFStorageAccountName: "sargtfvalidation"
+  backendTFStorageContainerName: "terraform-state"
+  storageKey:
+
+######################################
+# Universal Packages
+######################################
+
+# Set to true, if you would like to publish modules as Universal Packages (in ADO Artifacts)
+# If you provide a name below, you have to create an Artifact Feed in ADO with the same name before using this feed.
+  publishToArtifactsFeed: false
+  vstsFeedName: 'Modules'
+  vstsFeedProject: '$(System.TeamProject)'
+  vstsFeedOrganization: 'USDC-ADO'
+
+######################################
+# Build Artifact
+######################################
+# Set to true, if you would like to publish modules as build artifacts
+  publishToBuildArtifacts: false
+
+######################################
+# Azure PowerShell Version
+######################################
+# Should be set to 'latestVersion' unless there is an issue with the Az PowerShell modules.
+# If a specific version needs to be set azurePowerShellVersion should be changed to 'OtherVersion'. 
+# NOTE: The strings are case sensitive and will not work unless properly entered.
+  azurePowerShellVersion: 'latestVersion'
+# If using the latest version of the Az PowerShell modules, set `preferredAzurePowerShellVersion` to an empty string ''.
+# If overriding the Az PowerShell module version, set to the version. Example: '4.4.0'
+  preferredAzurePowerShellVersion: ''
+#
+# NOTE: To override for just an individual template, just add the following to the
+#     templates pipeline.yml replacing '4.4.0' with the desired version:
+#
+#   - name: azurePowerShellVersion
+#     value: 'OtherVersion'
+#   - name: preferredAzurePowerShellVersion
+#     value: '4.4.0'
+#

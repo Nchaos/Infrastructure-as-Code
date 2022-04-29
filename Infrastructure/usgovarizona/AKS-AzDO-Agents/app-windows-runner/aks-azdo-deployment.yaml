@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azdevops-deployment
+  labels:
+    app: azdevops-agent
+spec:
+  replicas: 4 #here is the configuration for the actual agent always running
+  selector:
+    matchLabels:
+      app: azdevops-agent
+  template:
+    metadata:
+      labels:
+        app: azdevops-agent
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: kubepodcreation
+        image: acrsharedprd.azurecr.us/windows-agent:1.0.0
+        imagePullPolicy: "Always"
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 192Mi
+        env:
+          - name: URL
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: URL
+          - name: TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: TOKEN
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-volume
+      imagePullSecrets:
+      - name: acr-secret
+      volumes:
+      - name: docker-volume
+        hostPath:
+          path: /var/run/docker.sock

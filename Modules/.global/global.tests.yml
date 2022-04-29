@@ -1,0 +1,58 @@
+parameters:
+- name: versioningOption
+  displayName: Default publish version
+  type: string
+  default: patch
+  values:
+  - patch
+  - minor
+  - major
+- name: uiCustomVersion
+  displayName: -OR- Custom publish version
+  type: string
+  default: '-'
+
+jobs:
+- job: 'Go_Test'
+  workspace:
+    clean: all
+  pool: $(poolName)
+  steps:
+# This task creates a storage account and container for the backend, in case it isn't already there
+# TO DO : Add a tagging mechanism
+  - task: AzureCLI@2
+    displayName: 'Setup Backend'
+    inputs:
+      azureSubscription: $(serviceConnection)
+      scriptType: bash
+      scriptPath: 'Infrastructure/.global/scripts/configure-backend-resources.sh'
+# Replace tokens in the backend.hcl file so that TF can store state in the storage account
+  - task: replacetokens@3
+    displayName: 'Replace tokens in Terraform file'
+    inputs:
+      targetFiles: '$(backendPath)/backend.hcl'
+      escapeType: none
+      tokenPrefix: '__'
+      tokenSuffix: '__'
+# Initialization with Terraform so that we can have the .terraform and backend setup for the test to use
+  - task: TerraformTaskV2@2
+    displayName: 'Terraform : Initialize'
+    inputs:
+      commandOptions: -backend-config="$(System.DefaultWorkingDirectory)/$(backendPath)/backend.hcl"
+      workingDirectory: $(modulePath)/examples
+      backendServiceArm: $(serviceConnection)
+      backendAzureRmResourceGroupName: $(backendTFRGName)
+      backendAzureRmStorageAccountName: $(backendTFStorageAccountName)
+      backendAzureRmContainerName: $(backendTFStorageContainerName)
+      backendAzureRmKey: '$(moduleName)-test.tfstate' 
+# Run the go test via bash and Azure CLI task to have it run az login
+# Working dir should be static, but it points to the test/src dir
+  - task: AzureCLI@2
+    displayName: 'Run Go Tests'
+    inputs:
+      azureSubscription: $(serviceConnection)
+      scriptType: bash
+      scriptLocation: scriptPath
+      scriptPath: $(globalPath)/scripts/run-gotest.sh
+      workingDirectory: $(goTestingPath)
+      addSpnToEnvironment: true

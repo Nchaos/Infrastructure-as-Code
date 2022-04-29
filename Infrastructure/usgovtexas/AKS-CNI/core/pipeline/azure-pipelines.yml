@@ -1,0 +1,69 @@
+name: $(projectName)-$(infraType)
+
+trigger: none
+
+parameters:
+- name: removeDeployment
+  displayName: Remove resources post-deployment
+  type: boolean
+  default: false
+
+variables:
+- template: /Modules/.global/global.variables.yml
+- name : projectName
+  value: AKS-CNI
+- name : infraType
+  value: core
+
+stages:
+  - stage: 'Deploy_Core_Infra'
+    jobs:
+      - job: 'Deploy_Core_Infra'
+        pool: $(poolName)
+        steps:
+        - task: AzureCLI@2
+          displayName: 'Setup Backend'
+          inputs:
+            azureSubscription: $(serviceConnection)
+            scriptType: bash
+            scriptPath: '$(globalPath)/scripts/configure-backend-resources.sh'
+        - task: replacetokens@3
+          displayName: 'Replace tokens in Terraform file'
+          inputs:
+            targetFiles: |
+              $(backendPath)/*.hcl
+            escapeType: none
+            tokenPrefix: '__'
+            tokenSuffix: '__'
+        - task: TerraformTaskV1@0
+          displayName: 'Terraform : Initialize'
+          inputs:
+            commandOptions: -backend-config="$(System.DefaultWorkingDirectory)/$(backendPath)/backend.hcl"
+            workingDirectory: $(infraPath)/$(infraType)
+            backendServiceArm: $(serviceConnection)
+            backendAzureRmResourceGroupName: $(backendTFRGName)
+            backendAzureRmStorageAccountName: $(backendTFStorageAccountName)
+            backendAzureRmContainerName: $(backendTFStorageContainerName)
+            backendAzureRmKey: '$(projectName)-$(infraType).tfstate'
+        - task: TerraformTaskV1@0
+          displayName: 'Terraform : Plan'
+          inputs:
+            command: plan
+            commandOptions: '-var-file="terraform.auto.tfvars"'
+            environmentServiceNameAzureRM: $(serviceConnection)
+            workingDirectory: $(infraPath)/$(infraType)
+        - task: TerraformTaskV1@0
+          displayName: 'Terraform : Apply'
+          inputs:
+            command: apply
+            commandOptions: '-var-file="terraform.auto.tfvars" -auto-approve'
+            workingDirectory: '$(infraPath)/$(infraType)'
+            environmentServiceNameAzureRM: $(serviceConnection)
+        - task: TerraformTaskV1@0
+          condition: and(succeededOrFailed(), eq( '${{ parameters.removeDeployment }}', true))
+          displayName: 'Terraform : Destroy'
+          inputs:
+            command: destroy
+            commandOptions: '-var-file="terraform.auto.tfvars" -auto-approve'
+            workingDirectory: $(infraPath)
+            environmentServiceNameAzureRM: $(serviceConnection)
